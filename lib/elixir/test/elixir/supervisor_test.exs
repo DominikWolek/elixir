@@ -252,6 +252,7 @@ defmodule SupervisorTest do
     assert Supervisor.terminate_child(pid, Stack) == :ok
 
     {:ok, stack} = Supervisor.restart_child(pid, Stack)
+    assert Supervisor.count_children(pid) == %{specs: 1, active: 1, supervisors: 0, workers: 1}
     assert GenServer.call(stack, :pop) == :hello
 
     assert Supervisor.terminate_child(pid, Stack) == :ok
