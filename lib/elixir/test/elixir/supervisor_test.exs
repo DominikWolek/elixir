@@ -200,6 +200,66 @@ defmodule SupervisorTest do
     Supervisor.stop(pid)
   end
 
+  describe "count_children/1" do
+    test "Active pair and one terminated" do
+      {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
+      assert Supervisor.count_children(pid) == %{specs: 0, active: 0, supervisors: 0, workers: 0}
+
+      {:ok, _first} =
+        Supervisor.start_child(pid, %{
+          id: :first,
+          start: {Task, :start_link, [fn -> :timer.sleep(:infinity) end]}
+        })
+
+      {:ok, _second} =
+        Supervisor.start_child(pid, %{
+          id: :second,
+          start: {Task, :start_link, [fn -> :timer.sleep(:infinity) end]}
+        })
+
+      assert Supervisor.count_children(pid) == %{specs: 2, active: 2, supervisors: 0, workers: 2}
+      assert Supervisor.terminate_child(pid, :first) == :ok
+      assert Supervisor.count_children(pid) == %{specs: 2, active: 1, supervisors: 0, workers: 2}
+
+      {:ok, _third} =
+        Supervisor.start_child(pid, %{
+          id: :child,
+          start: {Task, :start_link, [fn -> :timer.sleep(:infinity) end]}
+        })
+
+      assert Supervisor.count_children(pid) == %{specs: 3, active: 2, supervisors: 0, workers: 3}
+    end
+  end
+
+  describe "terminate_child/2" do
+    test "no child specification for the given child ID returns error" do
+      {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
+      assert Supervisor.terminate_child(pid, :non_existing) == {:error, :not_found}
+    end
+
+    test "do not keep temporary child specyfication" do
+      {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
+
+      assert {:ok, _pid} =
+               Supervisor.start_child(pid, %{
+                 id: :temporary_child,
+                 restart: :temporary,
+                 start: {Task, :start_link, [fn -> :timer.sleep(:infinity) end]}
+               })
+
+      assert {:ok, _pid} =
+               Supervisor.start_child(pid, %{
+                 id: :transient_child,
+                 restart: :transient,
+                 start: {Task, :start_link, [fn -> :timer.sleep(:infinity) end]}
+               })
+
+      assert Supervisor.terminate_child(pid, :temporary_child) == :ok
+      assert Supervisor.terminate_child(pid, :transient_child) == :ok
+      assert Supervisor.count_children(pid) == %{specs: 1, active: 0, supervisors: 0, workers: 1}
+    end
+  end
+
   describe "start_child/2" do
     test "supports old child spec" do
       {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
@@ -257,6 +317,7 @@ defmodule SupervisorTest do
 
     assert Supervisor.terminate_child(pid, Stack) == :ok
     assert Supervisor.delete_child(pid, Stack) == :ok
+    assert Supervisor.count_children(pid) == %{specs: 0, active: 0, supervisors: 0, workers: 0}
     Supervisor.stop(pid)
   end
 
