@@ -405,6 +405,16 @@ defmodule RegistryTest do
 
         assert sum_pid_entries(registry, partitions) == 2
       end
+
+      test "puts meta", %{registry: registry} do
+        assert Registry.meta(registry, :key) == :error
+
+        assert Registry.put_meta(registry, :key, "value") == :ok
+        assert Registry.meta(registry, :key) == {:ok, "value"}
+
+        assert Registry.put_meta(registry, {:tuple, :key}, "value") == :ok
+        assert Registry.meta(registry, {:tuple, :key}) == {:ok, "value"}
+      end
     end
   end
 
