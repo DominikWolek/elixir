@@ -191,6 +191,9 @@ defmodule GenServerTest do
     assert GenServer.whereis({:global, :whereis_bad_server}) == nil
     assert GenServer.whereis({:via, :global, name}) == pid
     assert GenServer.whereis({:via, :global, :whereis_bad_server}) == nil
+
+    {:ok, wrong_pid} = Task.start(fn -> :ok end)
+    assert GenServer.whereis(wrong_pid) == nil
   end
 
   test "stop/3", %{test: name} do
