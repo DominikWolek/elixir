@@ -158,7 +158,7 @@ defmodule RegistryTest do
       end
 
       test "updates current process value", %{registry: registry} do
-        assert Registry.update_value(registry, "hello", &raise/1) == :error
+        assert Registry.update_value(registry, "hello", &(&1 + 1)) == :error
         register_task(registry, "hello", :value)
         assert Registry.update_value(registry, "hello", &raise/1) == :error
 
@@ -797,6 +797,14 @@ defmodule RegistryTest do
                    {{"world", :_, :_}, [], [{:element, 1, :"$_"}]}
                  ])
                  |> Enum.sort()
+      end
+
+      test "raises if update value is called", %{registry: registry} do
+        register_task(registry, "hello", 1)
+
+        assert_raise ArgumentError, ~r/is not supported for duplicate registries/, fn ->
+          Registry.update_value(registry, "hello", &(&1 + 1))
+        end
       end
     end
   end
