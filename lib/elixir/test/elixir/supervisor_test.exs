@@ -228,6 +228,56 @@ defmodule SupervisorTest do
       assert Supervisor.terminate_child(pid, :child) == :ok
       assert Supervisor.restart_child(pid, :child) == {:ok, :undefined}
     end
+
+    test "child process returns :error" do
+      defmodule Flag do
+        use Agent
+
+        def start_link do
+          Agent.start_link(fn -> false end, name: __MODULE__)
+        end
+
+        def value do
+          Agent.get(__MODULE__, & &1)
+        end
+
+        def toggle() do
+          Agent.update(__MODULE__, &(!&1))
+        end
+      end
+
+      defmodule ErrorServer do
+        use GenServer
+
+        @doc false
+        def start_link do
+          GenServer.start_link(__MODULE__, nil)
+        end
+
+        @impl true
+        def init(_state) do
+          if !Flag.value() do
+            Flag.toggle()
+            {:ok, Map.new()}
+          else
+            {:stop, :reason}
+          end
+        end
+      end
+
+      Flag.start_link()
+      {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
+
+      child_spec = %{
+        id: :child,
+        start: {ErrorServer, :start_link, []}
+      }
+
+      {:ok, _child} = Supervisor.start_child(pid, child_spec)
+
+      assert Supervisor.terminate_child(pid, :child) == :ok
+      assert {:error, _reason} = Supervisor.restart_child(pid, :child)
+    end
   end
 
   describe "count_children/1" do
