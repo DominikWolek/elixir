@@ -200,6 +200,36 @@ defmodule SupervisorTest do
     Supervisor.stop(pid)
   end
 
+  describe "restart_child/2" do
+    test "child process start function returns :ignore" do
+      defmodule IgnoreServer do
+        use GenServer
+
+        @doc false
+        def start_link do
+          GenServer.start_link(__MODULE__, Map.new())
+        end
+
+        @impl true
+        def init(_state) do
+          :ignore
+        end
+      end
+
+      {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
+
+      child_spec = %{
+        id: :child,
+        start: {IgnoreServer, :start_link, []}
+      }
+
+      {:ok, _child} = Supervisor.start_child(pid, child_spec)
+
+      assert Supervisor.terminate_child(pid, :child) == :ok
+      assert Supervisor.restart_child(pid, :child) == {:ok, :undefined}
+    end
+  end
+
   describe "count_children/1" do
     test "Active pair and one terminated" do
       {:ok, pid} = Supervisor.start_link([], strategy: :one_for_one)
