@@ -216,4 +216,24 @@ defmodule GenServerTest do
     {:ok, _} = GenServer.start(Stack, [], name: name)
     assert GenServer.stop(name, :normal) == :ok
   end
+
+  defmodule ReplyGenServer do
+    use GenServer
+
+    @impl true
+    def init(state) do
+      {:ok, state}
+    end
+
+    @impl true
+    def handle_call(:hello, from, state) do
+      spawn(fn -> GenServer.reply(from, :world) end)
+      {:noreply, state}
+    end
+  end
+
+  test "reply/2" do
+    {:ok, pid} = GenServer.start(ReplyGenServer, [])
+    assert GenServer.call(pid, :hello) == :world
+  end
 end
